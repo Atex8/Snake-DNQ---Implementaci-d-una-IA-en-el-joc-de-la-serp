@@ -7,9 +7,12 @@ class App:
 
     def __init__(self):
 
-        self.dim = 1280, 720
+        self.dim = 640, 360
         self.display = pg.display.set_mode(self.dim, pg.RESIZABLE)
         self.stack = [GameScene(self)]
+        self.keyspressed = {
+            pg.K_SPACE: False
+        }
 
 
     def mainLoop(self):
@@ -29,6 +32,14 @@ class App:
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 self.running = False
+            elif event.type == pg.VIDEORESIZE:
+                self.dim = event.size
+                for scene in self.stack:
+                    scene.resize(event.size)
+            elif event.type == pg.KEYDOWN or event.type == pg.KEYUP:
+                for key in self.keyspressed.keys():
+                    if key == event.key:
+                        self.keyspressed[key] = event.type == pg.KEYDOWN
     
 
     def _update(self, dt):
@@ -38,8 +49,7 @@ class App:
 
     def _updateUI(self):
 
-        surface = self.stack[-1].render()
-        self.display.blit(surface, (0, 0))
+        self.stack[-1].render(self.display)
         pg.display.flip()
 
 

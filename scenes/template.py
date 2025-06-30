@@ -11,6 +11,11 @@ class SceneTemplate:
     def quitScene(self):
 
         self.app.stack.pop()
+    
+
+    def resize(self, size):
+
+        pass
 
     
     def update(self, dt):
@@ -18,6 +23,6 @@ class SceneTemplate:
         pass
 
 
-    def render(self):
+    def render(self, display):
 
-        return Surface(self.app.dim)
+        pass
