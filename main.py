@@ -1,17 +1,23 @@
 import time
 import pygame as pg
-from scenes.GameScene import GameScene
+import os
+from scenes.MainMenu import MainMenu
 
 
 class App:
 
     def __init__(self):
 
-        self.dim = 640, 360
+        self.directory = os.path.dirname(__file__)
+        self.defaultDim = 640, 360
+        self.dim = self.defaultDim
         self.display = pg.display.set_mode(self.dim, pg.RESIZABLE)
-        self.stack = [GameScene(self)]
+        self.stack = [MainMenu(self)]
         self.keyspressed = {
-            pg.K_SPACE: False
+            pg.K_SPACE: False,
+            pg.K_ESCAPE: False,
+            pg.K_UP: False,
+            pg.K_DOWN: False
         }
 
 
@@ -24,7 +30,10 @@ class App:
             prevtime = time.time()
             self._checkInput()
             self._update(dt)
-            self._updateUI()
+            if len(self.stack) > 0:
+                self._updateUI()
+            else:
+                self.running = False
 
     
     def _checkInput(self):

@@ -11,4 +11,4 @@ class Agent:
 
     def chooseAction(self, state):
 
-        return 0, 0, 1
+        return 0, 1, 0
