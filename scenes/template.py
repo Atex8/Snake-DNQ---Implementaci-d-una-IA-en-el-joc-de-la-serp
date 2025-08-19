@@ -1,13 +1,16 @@
 class SceneTemplate:
 
-    def __init__(self, app):
+    def __init__(self, app, customRel = False):
 
         self.app = app
+        if not customRel:
+            self.rel = app.defaultDim[0] / app.defaultDim[1]
+            self.resize(app.dim)
 
 
     def quitScene(self):
 
-        self.app.stack.pop()
+        self.app.stack.pop(self.app.stack.index(self))
     
 
     def addScene(self, scene):

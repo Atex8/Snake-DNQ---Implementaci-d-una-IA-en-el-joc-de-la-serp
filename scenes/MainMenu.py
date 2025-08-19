@@ -2,14 +2,14 @@ import pygame as pg
 import os
 from .template import SceneTemplate
 from .GameScene import GameScene
+from .SavesMenu import SavesScene
+from .SettingsMenu import SettingsScene
 
 
 class MainMenu(SceneTemplate):
 
     def __init__(self, app):
         super().__init__(app)
-
-        self.fontFile = os.path.join(app.directory, "sources", "ByteBounce.ttf")
 
         self.menuOptions = (
             ("Play", self._play),
@@ -19,26 +19,20 @@ class MainMenu(SceneTemplate):
         )
         self.index = 0
 
-        self.rel = app.defaultDim[0] / app.defaultDim[1]
-        self.resize(app.dim)
-
     
     def _play(self):
 
         self.addScene(GameScene(self.app))
 
 
+    def _saves(self):
+
+        self.addScene(SavesScene(self.app))
+
+
     def _settings(self):
 
-        pass
-    
-
-    def resize(self, size):
-
-        if size[0] / size[1] > self.rel:
-            self.scale = size[1] / self.app.defaultDim[1]
-        else:
-            self.scale = size[0] / self.app.defaultDim[0]
+        self.addScene(SettingsScene(self.app))
 
 
     def update(self, dt):
@@ -60,8 +54,8 @@ class MainMenu(SceneTemplate):
         
         display.fill((55, 55, 55))
 
-        titleFont = pg.font.Font(self.fontFile, round(64 * self.scale))
-        optionsFont = pg.font.Font(self.fontFile, round(32 * self.scale))
+        titleFont = pg.font.Font(self.app.fontFile, round(64 * self.scale))
+        optionsFont = pg.font.Font(self.app.fontFile, round(32 * self.scale))
         
         title = titleFont.render("Snake AI", False, (255, 255, 255))
         titleOffset = (self.app.dim[0] - title.get_width()) // 2, (self.app.dim[1] - 2 * title.get_height()) // 4

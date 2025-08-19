@@ -1,27 +1,45 @@
 import pygame as pg
+import json
+import os
+from datetime import datetime
+from random import randint
 from .template import SceneTemplate
 from .AI.Agent import Agent
-from random import randint
 
 
 class GameScene(SceneTemplate):
 
     def __init__(self, app):
-        super().__init__(app)
+        super().__init__(app, True)
+
+        if app.saveFile:
+            with open(app.saveFile, "r") as file:
+                data = json.load(file)
+        
+            self.width, self.height = data["width"], data["height"]
+
+            self.agent = Agent(
+                data["policyWeights"],
+                data["policyBiases"],
+                data["targetWeights"],
+                data["targetBiases"]
+            )
+
+        else:
+            self.width, self.height = app.settings["Grid width"], app.settings["Grid height"]
+
+            self.agent = Agent()
 
         self.border = 20
         self.tilesize = 40
-        self.width, self.height = 10, 10
         self.dim = self.width * self.tilesize + 2 * self.border, self.height * self.tilesize + 2 * self.border
         self.screen = pg.Surface(self.dim)
         self.rel = self.dim[0] / self.dim[1]
         self.resize(app.dim)
 
-        self.lapse = .3
+        self.lapse = 1 / app.settings["Simulation speed (ticks/s)"]
         self.gameOverTime = 1
         self.paused = True
-
-        self.agent = Agent()
 
         self._reset()
     
@@ -38,6 +56,7 @@ class GameScene(SceneTemplate):
 
         self.state = 0
         self.timesum = 0
+        self.wastedsteps = 0
 
         self.head = (self.width - 1) // 2, (self.height - 1) // 2
         self.direction = 0, 1, 0, 0                                 # UP, RIGHT, DOWN, LEFT
@@ -63,7 +82,11 @@ class GameScene(SceneTemplate):
             self.app.keyspressed[pg.K_ESCAPE] = False
             self.quitScene()
 
-        if not self.paused:
+        if self.paused:
+            if self.app.keyspressed[pg.K_UP]:
+                self.app.keyspressed[pg.K_UP] = False
+                self._saveData()
+        else:
             self.timesum += dt
             if self.state == 0:
                 if self.timesum >= self.lapse:
@@ -75,12 +98,37 @@ class GameScene(SceneTemplate):
                     self._reset()
     
 
+    def _saveData(self):
+
+        data = {
+            "width": self.width,
+            "height": self.height,
+            "policyWeights": self.agent.policyNet.weights,
+            "policyBiases": self.agent.policyNet.biases,
+            "targetWeights": self.agent.targetNet.weights,
+            "targetBiases": self.agent.targetNet.biases
+        }
+        if self.app.saveFile:
+            saveFile = self.app.saveFile
+        else:
+            now = datetime.now()
+            saveFile = os.path.join(self.app.savesFolder, f"{now.strftime("%d-%m-%Y_%H-%M-%S")}.json")
+        with open(saveFile, "w") as file:
+            json.dump(data, file, indent = 4)
+    
+
     def _gameStep(self):
 
         state = self._getGameState()
         action = self.agent.chooseAction(state)
         self.direction = self._updateDirection(action)
-        self._playGameStep()
+        reward, done = self._playGameStep()
+        nextstate = self._getGameState()
+        self.agent.memory.remember(state, action, reward, nextstate, done)
+        if self.state == 1:
+            self.agent.train_long()
+            self.agent.sync()
+            self.agent.epsilon -= 1
     
 
     def _getGameState(self):
@@ -91,23 +139,35 @@ class GameScene(SceneTemplate):
             1 if self.direction[2] else 0,
             1 if self.direction[3] else 0,
             
-            1 if (self.direction[0] and not self._isCollision((self.head[0], self.head[1] - 1))) or
-                 (self.direction[1] and not self._isCollision((self.head[0] + 1, self.head[1]))) or
-                 (self.direction[2] and not self._isCollision((self.head[0], self.head[1] + 1))) or
-                 (self.direction[3] and not self._isCollision((self.head[0] - 1, self.head[1]))) else 0,
-            1 if (self.direction[0] and not self._isCollision((self.head[0] + 1, self.head[1]))) or
-                 (self.direction[1] and not self._isCollision((self.head[0], self.head[1] + 1))) or
-                 (self.direction[2] and not self._isCollision((self.head[0] - 1, self.head[1]))) or
-                 (self.direction[3] and not self._isCollision((self.head[0], self.head[1] - 1))) else 0,
-            1 if (self.direction[0] and not self._isCollision((self.head[0], self.head[1] + 1))) or
-                 (self.direction[1] and not self._isCollision((self.head[0] - 1, self.head[1]))) or
-                 (self.direction[2] and not self._isCollision((self.head[0], self.head[1] - 1))) or
-                 (self.direction[3] and not self._isCollision((self.head[0] + 1, self.head[1]))) else 0,
+            1 if (self.direction[0] and self._isCollision((self.head[0] - 1, self.head[1]))) or
+                 (self.direction[1] and self._isCollision((self.head[0], self.head[1] - 1))) or
+                 (self.direction[2] and self._isCollision((self.head[0] + 1, self.head[1]))) or
+                 (self.direction[3] and self._isCollision((self.head[0], self.head[1] + 1))) else 0,
+            1 if (self.direction[0] and self._isCollision((self.head[0], self.head[1] - 1))) or
+                 (self.direction[1] and self._isCollision((self.head[0] + 1, self.head[1]))) or
+                 (self.direction[2] and self._isCollision((self.head[0], self.head[1] + 1))) or
+                 (self.direction[3] and self._isCollision((self.head[0] - 1, self.head[1]))) else 0,
+            1 if (self.direction[0] and self._isCollision((self.head[0] + 1, self.head[1]))) or
+                 (self.direction[1] and self._isCollision((self.head[0], self.head[1] + 1))) or
+                 (self.direction[2] and self._isCollision((self.head[0] - 1, self.head[1]))) or
+                 (self.direction[3] and self._isCollision((self.head[0], self.head[1] - 1))) else 0,
             
-            1 if self.food[0] > self.head[0] else 0,
-            1 if self.food[1] > self.head[1] else 0,
-            1 if self.food[0] < self.head[0] else 0,
-            1 if self.food[1] < self.head[1] else 0
+            1 if (self.direction[0] and self.food[0] < self.head[0]) or
+                 (self.direction[1] and self.food[1] < self.head[1]) or
+                 (self.direction[2] and self.food[0] > self.head[0]) or
+                 (self.direction[3] and self.food[1] > self.head[1]) else 0,
+            1 if (self.direction[0] and self.food[1] < self.head[1]) or
+                 (self.direction[1] and self.food[0] > self.head[0]) or
+                 (self.direction[2] and self.food[1] > self.head[1]) or
+                 (self.direction[3] and self.food[0] < self.head[0]) else 0,
+            1 if (self.direction[0] and self.food[0] > self.head[0]) or
+                 (self.direction[1] and self.food[1] > self.head[1]) or
+                 (self.direction[2] and self.food[0] < self.head[0]) or
+                 (self.direction[3] and self.food[1] < self.head[1]) else 0,
+            1 if (self.direction[0] and self.food[1] > self.head[1]) or
+                 (self.direction[1] and self.food[0] < self.head[0]) or
+                 (self.direction[2] and self.food[1] < self.head[1]) or
+                 (self.direction[3] and self.food[0] > self.head[0]) else 0
         )
 
 
@@ -123,16 +183,21 @@ class GameScene(SceneTemplate):
     def _playGameStep(self):
 
         newHead = self.head[0] + self.direction[1] - self.direction[3], self.head[1] - self.direction[0] + self.direction[2]
-        if self._isCollision(newHead):
+        if self._isCollision(newHead) or self.wastedsteps >= 100:
             self.state += 1
+            return -2, True
         elif newHead == self.food:
+            self.wastedsteps = 0
             self.body.append(self.head)
-            self._placeFood()
             self.head = newHead
+            self._placeFood()
+            return 10, False
         else:
+            self.wastedsteps += 1
             self.body.append(self.head)
             self.body.pop(0)
             self.head = newHead
+            return -.1, False
     
 
     def _isCollision(self, point):
