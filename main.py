@@ -8,19 +8,28 @@ class App:
 
     def __init__(self):
 
+        # Paràmetres del joc
         self.settings = {
             "Grid width": 10,
             "Grid height": 10,
             "Simulation speed (ticks/s)": 4
         }
+
+        # Rutes de fitxers
         self.directory = os.path.dirname(__file__)
         self.fontFile = os.path.join(self.directory, "sources", "ByteBounce.ttf")
         self.savesFolder = os.path.join(self.directory, "saves")
         self.saveFile = None
+
+        # Pantalla
         self.defaultDim = 640, 360
         self.dim = self.defaultDim
         self.display = pg.display.set_mode(self.dim, pg.RESIZABLE)
-        self.stack = [MainMenu(self)]
+
+        # Escena inicial
+        self.stack = [MainMenu(self)] # En comptes de "MainMenu" utilitzarem en el treball "GameScene"
+
+        # Tecles premudes
         self.keyspressed = {
             pg.K_SPACE: False,
             pg.K_ESCAPE: False,

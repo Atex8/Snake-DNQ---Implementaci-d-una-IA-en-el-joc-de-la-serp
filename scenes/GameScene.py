@@ -1,6 +1,7 @@
 import pygame as pg
 import json
 import os
+import matplotlib.pyplot as plt
 from datetime import datetime
 from random import randint
 from .template import SceneTemplate
@@ -41,6 +42,9 @@ class GameScene(SceneTemplate):
         self.gameOverTime = 1
         self.paused = True
 
+        self.scores = []
+        self.mean_scores = []
+
         self._reset()
     
 
@@ -53,6 +57,8 @@ class GameScene(SceneTemplate):
 
 
     def _reset(self):
+
+        self.score = 0
 
         self.state = 0
         self.timesum = 0
@@ -77,6 +83,14 @@ class GameScene(SceneTemplate):
             self.app.keyspressed[pg.K_SPACE] = False
             self.paused = not self.paused
             self.timesum = 0
+            if self.paused:
+                plt.ion()
+                fig, ax = plt.subplots()
+                ax.plot(range(len(self.scores)), self.scores, "-o")
+                ax.plot(range(len(self.mean_scores)), self.mean_scores, "-o")
+                while plt.fignum_exists(fig.number):
+                    plt.pause(0.01)
+                plt.ioff()
         
         if self.app.keyspressed[pg.K_ESCAPE]:
             self.app.keyspressed[pg.K_ESCAPE] = False
@@ -129,6 +143,8 @@ class GameScene(SceneTemplate):
             self.agent.train_long()
             self.agent.sync()
             self.agent.epsilon -= 1
+            self.scores.append(self.score)
+            self.mean_scores.append(sum(self.scores) / len(self.scores))
     
 
     def _getGameState(self):
@@ -187,6 +203,7 @@ class GameScene(SceneTemplate):
             self.state += 1
             return -2, True
         elif newHead == self.food:
+            self.score += 1
             self.wastedsteps = 0
             self.body.append(self.head)
             self.head = newHead
