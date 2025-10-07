@@ -6,5 +6,5 @@
 <body>
   <p>
   </p>
-  Aquest repositori és un material complementari al treball de recerca "Arnau Carbonell Soldevila - TREBALL DE RECERCA: Implementació d’una IA en el joc de la serp", l'enllaç del qual es pot trobar a continuació.
+  Aquest repositori és un material complementari al treball de recerca "Arnau Carbonell Soldevila - TREBALL DE RECERCA: Implementació d’una IA en el joc de la serp".
 </body>
