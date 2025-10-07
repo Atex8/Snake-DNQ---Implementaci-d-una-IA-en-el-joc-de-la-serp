@@ -1,7 +1,7 @@
 <h1 align="center">Snake AI - Un programa d'intel·ligència artificial utilitzant DQN</h1>
 <p align="left">
 <img src="https://img.shields.io/badge/STATUS-EN%20DESENVOLUPAMENT-green">
-<img src="https://img.shields.io/github/stars/Atex8/TR?style=social">
+<img src="https://img.shields.io/github/stars/Atex8/Snake-DNQ---Implementaci-d-una-IA-en-el-joc-de-la-serp?style=social">
 </p>
 <body>
   <p>
