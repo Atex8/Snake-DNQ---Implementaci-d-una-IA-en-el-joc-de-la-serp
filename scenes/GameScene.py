@@ -42,8 +42,18 @@ class GameScene(SceneTemplate):
         self.gameOverTime = 1
         self.paused = True
 
+        self.episode = 0
+        self.highScore = 0
+        self.maxReward = 0
         self.scores = []
         self.mean_scores = []
+
+        self.rewards = {
+            "win": 1,
+            "loose": -2,
+            "approach": .015,
+            "else": -.03
+        }
 
         self._reset()
     
@@ -58,7 +68,9 @@ class GameScene(SceneTemplate):
 
     def _reset(self):
 
+        self.episode += 1
         self.score = 0
+        self.gameReward = 0
 
         self.state = 0
         self.timesum = 0
@@ -86,8 +98,12 @@ class GameScene(SceneTemplate):
             if self.paused:
                 plt.ion()
                 fig, ax = plt.subplots()
-                ax.plot(range(len(self.scores)), self.scores, "-o")
-                ax.plot(range(len(self.mean_scores)), self.mean_scores, "-o")
+                ax.set_title("Neural network efficiency")
+                ax.set_xlabel("Number of games")
+                ax.set_ylabel("Score")
+                ax.plot(range(len(self.scores)), self.scores, label="Score per game")
+                ax.plot(range(len(self.mean_scores)), self.mean_scores, label="Mean score")
+                ax.legend()
                 while plt.fignum_exists(fig.number):
                     plt.pause(0.01)
                 plt.ioff()
@@ -137,6 +153,9 @@ class GameScene(SceneTemplate):
         action = self.agent.chooseAction(state)
         self.direction = self._updateDirection(action)
         reward, done = self._playGameStep()
+        self.gameReward += reward
+        if self.gameReward > self.maxReward:
+            self.maxReward = self.gameReward
         nextstate = self._getGameState()
         self.agent.memory.remember(state, action, reward, nextstate, done)
         if self.state == 1:
@@ -201,20 +220,26 @@ class GameScene(SceneTemplate):
         newHead = self.head[0] + self.direction[1] - self.direction[3], self.head[1] - self.direction[0] + self.direction[2]
         if self._isCollision(newHead) or self.wastedsteps >= 100:
             self.state += 1
-            return -2, True
+            return self.rewards["loose"], True
         elif newHead == self.food:
             self.score += 1
+            if self.score > self.highScore:
+                self.highScore = self.score
             self.wastedsteps = 0
             self.body.append(self.head)
             self.head = newHead
             self._placeFood()
-            return 10, False
+            return self.rewards["win"], False
         else:
+            if (self.food[0] - newHead[0]) ** 2 + (self.food[1] - newHead[1]) ** 2 < (self.food[0] - self.head[0]) ** 2 + (self.food[1] - self.head[1]) ** 2:
+                reward = self.rewards["approach"]
+            else:
+                reward = self.rewards["else"]
             self.wastedsteps += 1
             self.body.append(self.head)
             self.body.pop(0)
             self.head = newHead
-            return -.1, False
+            return reward, False
     
 
     def _isCollision(self, point):
@@ -239,7 +264,24 @@ class GameScene(SceneTemplate):
         for y in range(self.height + 1):
             pg.draw.line(self.screen, (255, 255, 255), (self.border, self.border + y * self.tilesize), (self.border + self.width * self.tilesize, self.border + y * self.tilesize))
 
+        font = pg.font.Font(self.app.fontFile, round(32 * self.scale))
+        episodeText = font.render(f"Episode: {self.episode}", False, (255, 255, 255))
+        scoreText = font.render(f"Score: {self.score}", False, (255, 255, 255))
+        highscoreText = font.render(f"High Score: {self.highScore}", False, (255, 255, 255))
+        gameRewardText = font.render(f"Reward: {int(self.gameReward)}", False, (255, 255, 255))
+        maxRewardText = font.render(f"Max reward: {int(self.maxReward)}", False, (255, 255, 255))
+        episodeOffset = 10 * self.scale, 10 * self.scale
+        scoreOffset = episodeOffset[0], episodeOffset[1] + episodeText.get_height() + 5 * self.scale
+        highscoreOffset = episodeOffset[0], scoreOffset[1] + scoreText.get_height() + 5 * self.scale
+        gameRewardOffset = episodeOffset[0], highscoreOffset[1] + highscoreText.get_height() + 5 * self.scale
+        maxRewardOffset = episodeOffset[0], gameRewardOffset[1] + gameRewardText.get_height() + 5 * self.scale
+
         display.fill((55, 55, 55))
         scsurface = pg.transform.smoothscale_by(self.screen, self.scale)
         offset = (self.app.dim[0] - scsurface.get_width()) / 2, (self.app.dim[1] - scsurface.get_height()) / 2
         display.blit(scsurface, offset)
+        display.blit(episodeText, episodeOffset)
+        display.blit(scoreText, scoreOffset)
+        display.blit(highscoreText, highscoreOffset)
+        display.blit(gameRewardText, gameRewardOffset)
+        display.blit(maxRewardText, maxRewardOffset)

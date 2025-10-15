@@ -1,3 +1,4 @@
+import numpy as np
 from random import randint, sample
 from copy import deepcopy
 from .NeuralNet import DeepQNNet
@@ -22,23 +23,24 @@ class Agent:
 
     def __init__(self, policyWeights = None, policyBiases = None, targetWeights = None, targetBiases = None):
 
+        self.lr = .0005
         self.epsilon = 80
-        self.gamma = .1
-        self.batchsize = 1000
+        self.gamma = .9
+        self.batchsize = 512
         self.dim = 11, 128, 64, 3
 
         self.memory = ReplayBuffer(100_000)
         if policyWeights:
-            self.policyNet = DeepQNNet(self.dim, policyWeights, policyBiases)
-            self.targetNet = DeepQNNet(self.dim, targetWeights, targetBiases)
+            self.policyNet = DeepQNNet(self.dim, self.lr, policyWeights, policyBiases)
+            self.targetNet = DeepQNNet(self.dim, self.lr, targetWeights, targetBiases)
         else:
-            self.policyNet = DeepQNNet(self.dim)
+            self.policyNet = DeepQNNet(self.dim, self.lr)
             self.sync()
     
 
     def sync(self):
 
-        self.targetNet = DeepQNNet(self.dim, self.policyNet.weights, self.policyNet.biases)
+        self.targetNet = DeepQNNet(self.dim, self.lr, self.policyNet.weights, self.policyNet.biases)
 
 
     def chooseAction(self, state):
@@ -48,7 +50,7 @@ class Agent:
             arg = randint(0, 2)
         else:
             result = self.policyNet.forward(state)[1][-1]
-            arg = result.index(max(result))
+            arg = np.argmax(result)
         action[arg] = 1
         return tuple(action)
     
@@ -59,9 +61,9 @@ class Agent:
             zs, activations = self.policyNet.forward(prevstate[i])
             Qval = activations[-1]
             target = deepcopy(Qval)
-            target[action[i].index(max(action[i]))] = reward[i]
+            target[np.argmax(action[i])] = reward[i]
             if not done[i]:
-                target[action[i].index(max(action[i]))] += self.gamma * max(self.targetNet.forward(newstate[i])[1][-1])
+                target[np.argmax(action[i])] += self.gamma * max(self.targetNet.forward(newstate[i])[1][-1])
             dloss = [2 * (Qval[_] - target[_]) for _ in range(self.dim[-1])]
             self.policyNet.backward(dloss, zs, activations)
 
